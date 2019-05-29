@@ -1,0 +1,550 @@
+<!--
+    This is an autopost App created with HTML, CSS, JavaScript and using the FB Api.
+    Its main purpose is to allow the user to log-in to their facebook page, and schedule
+    the posts for ther page. The post can have an image or not nad it can be scheduled
+    from one hour to six months
+-->
+<html>
+<script async defer src="https://connect.facebook.net/en_US/sdk.js"></script>
+<head>
+    <link rel="stylesheet" href="https://bootswatch.com/4/lux/bootstrap.min.css"</link>
+
+    <!--
+        THE CSS styling for the start
+    -->
+    <style media ="screen">
+        #red{color:red}
+        #profile,#logout,#feed,#trying,#schedule,#step_one{display:none}
+    </style>
+    <!--
+        THE CSS table styling
+    -->
+    <style>
+    table {
+      font-family: arial, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    td, th {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 8px;
+    }
+
+    tr:nth-child(even) {
+      background-color: #dddddd;
+    }
+    </style>
+<body>
+
+    <script>
+
+    //initalises the facebook app annd connects it to the Facebook api for javascript
+      window.fbAsyncInit = function() {
+        FB.init({
+          appId      : '822502571453916',
+          cookie     : true,
+          xfbml      : true,
+          version    : 'v3.3'
+        });
+
+        FB.getLoginStatus(function(response) {
+            statusChangeCallback(response);
+        });
+
+      };
+
+      (function(d, s, id){
+         var js, fjs = d.getElementsByTagName(s)[0];
+         if (d.getElementById(id)) {return;}
+         js = d.createElement(s); js.id = id;
+         js.src = "https://connect.facebook.net/en_US/sdk.js";
+         fjs.parentNode.insertBefore(js, fjs);
+       }(document, 'script', 'facebook-jssdk'));
+
+
+
+       //the log-in to facebook function comes directly from the FB API code
+       function statusChangeCallback(response){
+           if(response.status ==='connected'){
+
+               console.log('Logged in and auth');
+               setElements(true);
+               testAPI();
+           } else {
+               console.log('Not logged in');
+               setElements(false);
+           }
+       }
+
+        //checks the log-in state function
+        function checkLoginState() {
+          FB.getLoginStatus(function(response) {
+            var accessToken = response.authResponse.accessToken;
+            console.log(accessToken);
+
+            statusChangeCallback(response);
+          });
+}
+    //This function initalises the post to facebook functionality by checking the Page URL from the user
+    function postFb(){
+        //gets the page id
+        let pageid = getPageId();
+        //gets the page posts
+        getPagePosts();
+        console.log(pageid);
+
+        //if id is not a number prompts the user to enter a correct URL
+        if (isNaN(pageid)){
+            alert("Your URL is not in to correct format!! Please make sure its in the following format: 'https://www.facebook.com/pagename-pageid/' \n Please update it down below before you continue!!" );
+        }
+        else{
+        document.getElementById("schedule").style.display= 'block';
+        document.getElementById("red").style.display= 'none';
+        //document.getElementById("step_one").style.top= '90%';
+        document.getElementById("sentence").innerHTML = "To Change The Posting Page just post the URL of the new page below:";
+        //document.getElementById("url").value == "";
+
+        //accesses the facebook page
+        FB.api('/'+ pageid +'?fields=access_token', function(response) {
+            document.getElementById("trying").innerHTML= response.access_token;
+        });
+    }
+    }
+
+    //this function takes a text and a time from the user and posts on facebook
+    function postNow(bodyLabel,timeLabel){
+        //gets the page id
+        let pageid = getPageId();
+        console.log(timeLabel);
+        //gets the page token
+        let pageToken = document.getElementById("trying").textContent;
+
+        //gets the text content from the user
+        let body = document.getElementById(bodyLabel).textContent;
+        //posts on facebook
+        FB.api('/' + pageid + '/feed', 'post', {message: body, access_token: pageToken,published:false,scheduled_publish_time:timeLabel}, function(response) {
+            console.log(response);
+            //checks if the post was scheduled or not
+            if(response && !response.error){
+                alert("Success!! Your post has been Scheduled");
+            } else {
+                alert("Error. Your Post has not been scheduled! Please try again!");
+            }
+        });
+    }
+
+    //this function gets the page posts based on the page id
+    function getPagePosts(){
+    let pageid = getPageId();
+
+        FB.api('/' + pageid + '/feed',function(response){
+            if(response && !response.error){
+                console.log(response);
+                buildFeed(response);
+                }
+            });
+    }
+
+    //this function gets the users information such as name,email,birthday and location
+    function testAPI(){
+
+        FB.api('/me?fields=name,email,birthday,location',function(response){
+
+            //if everything is good then it will build the user profile, build the schduling tool and setmin and max values for the time
+            if(response && !response.error){
+                buildProfile(response);
+                buildSchedule();
+                setMinMaxValues();
+            }
+
+        })
+    }
+
+
+    //this function builds the scheduling tool aka the table used the schdule your posts on facebook
+    function buildSchedule(){
+        let schedule =`
+        <h2> Auto Post Tool for Facebook </h2>
+        <table>
+         <tr>
+           <th>Add post Text</th>
+           <th>Add Picture (ONLY PNG, JPG)</th>
+           <th>Date & Time</th>
+           <th>Facebook post</th>
+         </tr>
+         <tr>
+           <td><input type="text" name="Post" id="post-text-one"><p id="post-text-one-label" display="none"><br></td>
+           <td><input type="file" name="fileupload"  id="image_input_one"></td>
+           <td><input type="datetime-local" id="post-one-time"
+               class="post-time" name="post-time" display="block"> <p id="post-one-time-label" display="none"></p></td>
+           <td> <button type="button" onclick="setPost('post-text-one','post-text-one-label','post-one-time','post-one-time-label','image_input_one')">Schedule Post</button>
+           <button type="button" onclick="editPost('post-text-one','post-text-one-label','post-one-time','post-one-time-label','image_input_one')">New Post</button></td>
+
+         </tr>
+         <tr>
+             <td><input type="text" name="Post" id="post-text-two"><p id="post-text-two-label" display="none"><br></td>
+             <td><input type="file" name="fileupload"  id="image_input_two"></td>
+             <td><input type="datetime-local" id="post-two-time"
+                 class="post-time" name="post-time"><p id="post-two-time-label" display="none"></p></td>
+                 <td> <button type="button" onclick="setPost('post-text-two','post-text-two-label','post-two-time','post-two-time-label','image_input_two')">Schedule Post</button>
+                 <button type="button" onclick="editPost('post-text-two','post-text-two-label','post-two-time','post-two-time-label','image_input_two')">New Post</button></td>
+           </tr>
+           <tr>
+             <td><input type="text" name="Post" id="post-text-three"><p id="post-text-three-label" display="none"><br></td>
+             <td><input type="file" name="fileupload" id="image_input_three"></td>
+             <td><input type="datetime-local" id="post-three-time"
+                    name="post-time" class="post-time"><p id="post-three-time-label" display="none"></p></td>
+                    <td> <button type="button" onclick="setPost('post-text-three','post-text-three-label','post-three-time','post-three-time-label','image_input_three')">Schedule Post</button>
+                    <button type="button" onclick="editPost('post-text-three','post-text-three-label','post-three-time','post-three-time-label','image_input_three')">New Post</button></td>
+            </tr>
+           <tr>
+             <td><input type="text" name="Post" id="post-text-four"><p id="post-text-four-label" display="none"><br></td>
+             <td><input type="file" name="fileupload" id="image_input_four"></td>
+             <td><input type="datetime-local" id="post-four-time"
+                    name="post-time" class="post-time"><p id="post-four-time-label" display="none"></p></td>
+                    <td> <button type="button" onclick="setPost('post-text-four','post-text-four-label','post-four-time','post-four-time-label','image_input_four')">Schedule Post</button>
+                    <button type="button" onclick="editPost('post-text-four','post-text-four-label','post-four-time','post-four-time-label','image_input_four')">New Post</button></td>
+           </tr>
+           <tr>
+             <td><input type="text" name="Post" id="post-text-five"><p id="post-text-five-label" display="none"><br></td>
+             <td><input type="file" name="fileupload"  id="image_input_five"></td>
+             <td><input type="datetime-local" id="post-five-time"
+                    name="post-time" class="post-time"><p id="post-five-time-label" display="none"></p></td>
+                    <td> <button type="button" onclick="setPost('post-text-five','post-text-five-label','post-five-time','post-five-time-label','image_input_five')">Schedule Post</button>
+                    <button type="button" onclick="editPost('post-text-five','post-text-five-label','post-five-time','post-five-time-label','image_input_five')">New Post</button></td></tr>
+           <tr>
+             <td><input type="text" name="Post" id="post-text-six"><p id="post-text-six-label" display="none"></p><br></td>
+             <td><input type="file" name="fileupload" id="image_input_six"></td>
+             <td><input type="datetime-local" id="post-six-time"
+                    name="post-time" class="post-time"><p id="post-six-time-label" display="none"></p></td>
+                    <td> <button type="button" onclick="setPost('post-text-six','post-text-six-label','post-six-time','post-six-time-label','image_input_six')">Schedule Post</button>
+                    <button type="button" onclick="editPost('post-text-six','post-text-six-label','post-six-time','post-six-time-label','image_input_six')">New Post</button></td></tr>
+       </table>
+        `
+        document.getElementById('schedule').innerHTML =schedule;
+    }
+
+    //this function builds the user profile based on his information
+    function buildProfile(user){
+        let profile = `
+            <h3>${user.name} </h3>
+            <ul class="list-group">
+            <li class="list-group-item"> User ID: ${user.id}</li>
+            <li class="list-group-item"> Email: ${user.email}</li>
+            <li class="list-group-item"> Birthday: ${user.birthday}</li>
+            <li class="list-group-item"> Location: ${user.location.name}</li>
+            </ul>
+        `;
+        document.getElementById('profile').innerHTML =profile;
+    }
+
+    //this function builds the page feed
+    function buildFeed(feed){
+        let output = `<h3> Latest Page Post: </h3>`;
+        for (let i in feed.data){
+            if(feed.data[i].message){
+                output += `
+                <div class="well">
+                ${'Post: ' + feed.data[i].message} <span> ${'Date: ' + feed.data[i].created_time}</span>
+                </div>`;
+            }
+        }
+        document.getElementById('feed').innerHTML =output;
+    }
+
+    //this function sets up all the elements upon login
+    function setElements(isLoggedIn){
+        if(isLoggedIn){
+            document.getElementById('logout').style.display= 'block';
+            document.getElementById('step_one').style.display= 'block';
+            document.getElementById('step_one').style.position = 'relative';
+            document.getElementById('step_one').style.left ='10%';
+            document.getElementById('step_one').style.top ='5%';
+            document.getElementById('schedule').style.position = 'relative';
+            document.getElementById('schedule').style.left = '0%';
+            //document.getElementById('step_one').style.top = '15%';
+            //document.getElementById('feed').style.display= 'block';
+            document.getElementById('fb-btn').style.display= 'none';
+            document.getElementById('heading').style.display= 'none';
+            document.getElementById('red').style.display = 'block';
+            document.getElementById("sentence").innerHTML = "Add the URL of the page you want to post to:";
+        }else{
+            document.getElementById('logout').style.display= 'none';
+            document.getElementById('feed').style.display= 'none';
+            document.getElementById('profile').style.display= 'none';
+            document.getElementById('schedule').style.display= 'none';
+            document.getElementById('fb-btn').style.display= 'block';
+            document.getElementById('heading').style.display= 'block';
+            document.getElementById('step_one').style.display ='none';
+
+        }
+    }
+
+    //this function logs the user out
+    function logout(){
+        FB.logout(function(response){
+            console.log('Not logged in');
+            setElements(false);
+        })
+    }
+
+        //this function gets todays date
+        function getTodaysDate(){
+            let today = new Date();
+            let date = today.getFullYear()+'-'+("0" + (today.getMonth() + 1)).slice(-2)+'-'+today.getDate();
+            let time = today.getHours() + ":" + today.getMinutes();
+            let dateTime = date+'T'+time;
+            return dateTime;
+        }
+
+        //this function gets the max date (6 months from now)
+        function getMaxDate(){
+            let today = new Date();
+            let maxDate = today.getFullYear()+'-'+("0" + (today.getMonth() + 7)).slice(-2)+'-'+("0" + today.getDate()).slice(-2);
+            let time = ("0"+(today.getHours())).slice(-2) + ":" + ("0" + today.getMinutes()).slice(-2);
+            let dateTime = maxDate+'T'+time;
+            return dateTime;
+        }
+
+        //this function gets the min date (1 hour from now)
+        function getMinDate(){
+            let today = new Date();
+            let date = today.getFullYear()+'-'+("0" + (today.getMonth() + 1)).slice(-2)+'-'+("0" + today.getDate()).slice(-2);
+            let minTime = ("0"+(today.getHours()+1)).slice(-2) + ":" + ("0" + today.getMinutes()).slice(-2);
+            let dateTime = date+'T'+minTime;
+            return dateTime;
+        }
+
+        //this function sets the min and the max values in the scheduling tool
+        function setMinMaxValues(){
+            var postTimes = document.getElementsByClassName("post-time");
+            Array.prototype.forEach.call(postTimes, function(postTime) {
+            postTime.max= getMaxDate();
+            postTime.min= getMinDate();
+        });
+        }
+
+        //this is the function that actually posts on facebook when the button is clicked
+        function setPost(postId,labelId,postDateId,labelDateId,imageInput){
+            //it sets the post text first
+            setPostText(postId,labelId);
+            //then sets the date to post
+            setDate(postDateId,labelDateId);
+
+            //then it converts the post time to unix time
+            let postTime = convertToUnix(postDateId);
+
+            //it checks if the user has input an image or not and calls the appropriate posting function
+            if(document.getElementById(imageInput).value.length == 0){
+                postNow(labelId,postTime);
+            }
+            else{
+                postPhoto(labelId,postTime,imageInput);
+            }
+        }
+
+        //the purpose for this function now is to just add a new post
+        function editPost(postId,labelId,postDateId,labelDateId,imageInput){
+
+            editPostText(postId,labelId);
+            editDate(postDateId,labelDateId);
+        }
+
+        //this function converts the time from mm-dd--yyy to unix
+        function convertToUnix(labelId){
+            if(document.getElementById(labelId).value != ""){
+                let setDate = document.getElementById(labelId).value;
+                //console.log(setDate);
+                let publishTime = Math.round(new Date(setDate).getTime() / 1000);
+                //console.log(publishTime);
+                return publishTime;
+            }
+        }
+
+        //this function sets the date for the post by getting the user input
+        function setDate(postDateId,labelDateId){
+                if(document.getElementById(postDateId).value < document.getElementById(postDateId).min){
+                    alert('Please enter a date between an hour and six months of the post!')
+                } else{
+                    document.getElementById(postDateId).style.display = "none";
+                    let date = document.getElementById(postDateId).value;
+                    document.getElementById(labelDateId).style.display = "block";
+                    document.getElementById(labelDateId).innerHTML = date;
+                }
+        }
+
+        //this function sets the post text depending on user input
+        function setPostText(postId,labelId){
+            if(document.getElementById(postId).value == ""){
+                alert('You cant post nothing!')
+            }else{
+                document.getElementById(postId).style.display = "none";
+                let post = document.getElementById(postId).value;
+                document.getElementById(labelId).style.display = "block";
+                document.getElementById(labelId).innerHTML = post;
+        }
+        }
+
+        //this function for now just sets the up the date for a new date to be inserted
+        function editDate(postDateId,labelDateId){
+            document.getElementById(postDateId).style.display = "block";
+            let date = document.getElementById(postDateId).value;
+            document.getElementById(labelDateId).style.display = "none";
+            document.getElementById(postDateId).value = date;
+        }
+        //this function sets the text for a new text to be inserted
+        function editPostText(postId,labelId){
+            document.getElementById(postId).style.display = "block";
+            let post = document.getElementById(postId).value;
+            document.getElementById(labelId).style.display = "none";
+            document.getElementById(postId).value = post;
+        }
+
+        //this function just sets up the home window
+        function yourHome(){
+            document.getElementById('profile').style.display ="none";
+            document.getElementById('feed').style.display ="none";
+            document.getElementById('schedule').style.display ="block";
+        }
+        //this function sets up the profile window
+        function yourProfile(){
+            document.getElementById('profile').style.display ="block";
+            document.getElementById('feed').style.display ="none";
+            document.getElementById('schedule').style.display ="none";
+        }
+        //this function sets up the feed window
+        function yourFeed(){
+            document.getElementById('profile').style.display ="none";
+            document.getElementById('feed').style.display ="block";
+            document.getElementById('schedule').style.display ="none";
+        }
+
+        //this function gets the page id from the url
+        function getPageId(){
+        let url = document.getElementById("url").value;
+        let ids = "";
+        let stop = false;
+        let i = 2;
+
+            while(!stop){
+                if(url[url.length-i] != "-"){
+                ids += url[url.length-i]
+                i++;
+                }else{
+                stop = true;
+                }
+            }
+                return reverse(ids);
+        }
+
+        //this is just a reverse function I build to get the appropriate id from the URL
+        function reverse(str){
+          let reversed = "";
+          for (var i = str.length - 1; i >= 0; i--){
+            reversed += str[i];
+          }
+          return reversed;
+        }
+
+        //this is the function that schdules a post with a picture on it. It makes the picture so the FB API would understand
+        function postPhoto(bodyLabel,timeLabel,imageInput){
+            let pageId = getPageId();
+            let pageAccessToken = document.getElementById("trying").textContent;
+            let message = document.getElementById(bodyLabel).textContent;
+
+            const fileReader = new FileReader();
+            const file = document.getElementById(imageInput).files[0];
+
+            fileReader.onloadend = async () => {
+	        const photoData = new Blob([fileReader.result], {type: 'image/jpg'});
+	        const formData = new FormData();
+
+	       formData.append('access_token', pageAccessToken);
+	       formData.append('source', photoData);
+	       formData.append('message', message);
+           formData.append('scheduled_publish_time',timeLabel);
+           formData.append('published',false);
+
+
+		    let response = await fetch(`https://graph.facebook.com/${pageId}/photos`, {
+		    body: formData,
+		    method: 'post'
+	});
+	response = await response.json();
+    if(response && !response.error){
+        alert("Success!! Your post has been scheduled")
+    }
+    else {
+        alert("Error you post has not been scheduled! Please try again!");
+    }
+	console.log(response);
+};
+fileReader.readAsArrayBuffer(file);
+        }
+
+    </script>
+
+    <!--
+        This is where the navigation bar is created with little functionality to it
+    -->
+
+    <nav class="navbar navbar-expand-md">
+      <a class="navbar-brand" href="#">Auto Post</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+          <li>
+            <a class="nav-link" onclick= 'yourHome()' >Home <span class="sr-only">(current)</span></a>
+          </li>
+          <li>
+            <a class="nav-link" onclick= 'yourProfile()'>Your Profile <span class="sr-only">(current)</span></a>
+          </li>
+          <li>
+            <a class="nav-link" onclick= 'yourFeed()'>Your Page Posts <span class="sr-only">(current)</span></a>
+          </li>
+
+        </ul>
+
+        <ul class="navbar-nav mr-right">
+            <li><a id="logout" href="#" onclick="logout()">Logout</a> </li>
+            <fb:login-button
+            id="fb-btn"
+              scope="public_profile,email,user_birthday,user_location,user_posts,pages_show_list,manage_pages,publish_pages",return_scopes = true,
+              onlogin="checkLoginState();">
+            </fb:login-button>
+
+        </ul>
+
+
+      </div>
+    </nav>
+
+    <!--
+    This is the container for the login page
+    -->
+    <div class="container">
+        <h3 id="heading"> Log in to view your profile </h3>
+        <div id="profile"></div>
+        <div id="schedule"></div>
+        <div id="feed"></div>
+    </div>
+    <!--
+    This is so that the user has to place the appropriate URL as part of the step one of autoposting
+    -->
+    <div id="step_one">
+        <h2 id="red"> Step 1: </h2>
+        <h3 id="sentence">Add the URL of the page you want to post to:</h3>
+        <h2 id="trying"> E </h2>
+        <input type="text" name="URL" id="url" display ="block">
+        <button onclick="postFb()">Add URL</button>
+    </div>
+
+
+
+</body>
+</html>

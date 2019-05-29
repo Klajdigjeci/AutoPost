@@ -1,0 +1,27 @@
+<html>
+
+<body>
+<input type='file' accept='image/*' onchange='openFile(event)'><br>
+<img id='output' style="height:100px; width:100px;">
+
+<style>
+
+function openFile (file) {
+
+var input = file.target;
+
+   var reader = new FileReader();
+   reader.onload = function(){}
+     var dataURL = reader.result;
+     var output = document.getElementById('output');
+     output.src = dataURL;
+ };
+   reader.readAsDataURL(input.files[0]);
+};
+
+
+</style>
+
+</body>
+
+</html>
